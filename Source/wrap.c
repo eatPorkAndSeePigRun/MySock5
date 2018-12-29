@@ -1,6 +1,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/epoll.h>
 
 #include "wrap.h"
 
@@ -39,14 +40,15 @@ Listen(int fd, int backlog) {
 }
 
 extern int
-Accept(int fd, const struct sockaddr *sa, socklen_t *salenptr) {
-    int n;
+Accept(int listenfd, const struct sockaddr *sa, socklen_t *salenptr) {
+    int fd;
 
-    n = accept(fd, sa, salenptr);
-    if (n < 0) {
+    fd = accept(listenfd, sa, salenptr);
+    if (fd < 0) {
         perror("accept error");
         exit(1);
     }
+    return fd;
 }
 
 extern void
@@ -88,4 +90,40 @@ Write(int fd, const void *buf, size_t nbytes) {
         }
     }
     return n;
+}
+
+extern int
+Epoll_create(int size) {
+    int epfd;
+
+    epfd = epoll_create(size);
+    if (epfd < 0) {
+        perror("epoll_create error");
+        exit(1);
+    }
+    return epfd;
+}
+
+extern int
+Epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
+    int n;
+
+    n = epoll_ctl(epfd, op, fd, event);
+    if (n < 0) {
+        perror("epoll_ctl error");
+        exit(1);
+    }
+    return n;
+}
+
+extern int
+Epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+    int nfds;
+
+    nfds = epoll_wait(epfd, events, maxevents, timeout);
+    if (nfds < 0) {
+        perror("epoll_wait error");
+        exit(1);
+    }
+    return nfds;
 }
