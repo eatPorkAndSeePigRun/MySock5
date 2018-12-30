@@ -5,7 +5,7 @@
 
 int
 main(int argc, char **argv) {
-    int listenfd; 
+    int listenfd;
 
     printf("hello world!\n");
     listenfd = tcp("127.0.0.1", 8080);

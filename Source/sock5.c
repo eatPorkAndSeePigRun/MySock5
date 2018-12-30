@@ -8,8 +8,9 @@
 #include "wrap.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
-extern int 
+extern int
 tcp(const char *ip, uint16_t port) {
     int listenfd;
     struct sockaddr_in servaddr;
@@ -22,6 +23,7 @@ tcp(const char *ip, uint16_t port) {
     listenfd = Socket(AF_INET, SOCK_STREAM, 0);
     Bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
     Listen(listenfd, 5);
+    return listenfd;
 }
 
 extern void
@@ -58,6 +60,7 @@ handle_accept(int epollfd, int listenfd) {
     socklen_t clientaddrlen;
     struct epoll_event ev;
 
+    clientaddrlen = sizeof(clientaddr);
     clientfd = Accept(listenfd, (struct sockaddr *) &clientaddr, &clientaddrlen);
 
     ev.events = EPOLLIN;
@@ -67,30 +70,29 @@ handle_accept(int epollfd, int listenfd) {
 
 extern void
 do_read(int epollfd, int fd, void *buf) {
-    int n;
+    ssize_t n;
     struct epoll_event ev;
 
     n = Read(fd, buf, BUF_SIZE);
     if (n == 0) {
-        close(fd);
         ev.events = EPOLLIN;
         ev.data.fd = fd;
         Epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
+        close(fd);
     } else {
         ev.events = EPOLLOUT;
         ev.data.fd = fd;
         Epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
     }
-    printf("read: %s\n", buf);
+    printf("read: %s\n", (char*)buf);
 }
 
 extern void
 do_write(int epollfd, int fd, void *buf) {
-    int n;
     struct epoll_event ev;
 
-    n = Write(fd, buf, strlen(buf));
-    printf("write: %s\n", buf);
+    Write(fd, buf, strlen(buf));
+    printf("write: %s\n", (char*)buf);
     bzero(buf, BUF_SIZE);
     ev.events = EPOLLIN;
     ev.data.fd = fd;

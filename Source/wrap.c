@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/epoll.h>
+#include <stdio.h>
 
 #include "wrap.h"
 
@@ -15,13 +16,13 @@ Socket(int family, int type, int protocol) {
         perror("socket error");
         exit(1);
     }
-    return fd; 
+    return fd;
 }
 
-extern void 
+extern void
 Bind(int fd, const struct sockaddr *sa, socklen_t salen) {
     int n;
-    
+
     n = bind(fd, sa, salen);
     if (n < 0) {
         perror("bind error");
@@ -32,7 +33,7 @@ Bind(int fd, const struct sockaddr *sa, socklen_t salen) {
 extern void
 Listen(int fd, int backlog) {
     int n;
-    
+
     n = listen(fd, backlog);
     if (n < 0) {
         perror("listen error");
@@ -55,7 +56,7 @@ Accept(int listenfd, struct sockaddr *sa, socklen_t *salenptr) {
 extern void
 Connect(int fd, const struct sockaddr *sa, socklen_t salen) {
     int n;
-    
+
     n = connect(fd, sa, salen);
     if (n < 0) {
         perror("connect error");
@@ -66,7 +67,7 @@ Connect(int fd, const struct sockaddr *sa, socklen_t salen) {
 extern ssize_t
 Read(int fd, void *buf, size_t nbytes) {
     ssize_t n;
-    
+
     while ((n = read(fd, buf, nbytes)) < 0) {
         if (errno == EINTR)
             continue;
