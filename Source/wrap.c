@@ -1,12 +1,13 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <sys/epoll.h>
 
 #include "wrap.h"
 
 extern int
-Socket(int family, int type, int protocol = 0) {
+Socket(int family, int type, int protocol) {
     int fd;
 
     fd = socket(family, type, protocol);
@@ -40,7 +41,7 @@ Listen(int fd, int backlog) {
 }
 
 extern int
-Accept(int listenfd, const struct sockaddr *sa, socklen_t *salenptr) {
+Accept(int listenfd, struct sockaddr *sa, socklen_t *salenptr) {
     int fd;
 
     fd = accept(listenfd, sa, salenptr);
@@ -63,7 +64,7 @@ Connect(int fd, const struct sockaddr *sa, socklen_t salen) {
 }
 
 extern ssize_t
-Read(int fd, const void *buf, size_t nbytes) {
+Read(int fd, void *buf, size_t nbytes) {
     ssize_t n;
     
     while ((n = read(fd, buf, nbytes)) < 0) {
@@ -78,7 +79,7 @@ Read(int fd, const void *buf, size_t nbytes) {
 }
 
 extern ssize_t
-Write(int fd, const void *buf, size_t nbytes) {
+Write(int fd, void *buf, size_t nbytes) {
     ssize_t n;
 
     while ((n = write(fd, buf, nbytes)) < 0) {
