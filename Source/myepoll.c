@@ -94,15 +94,15 @@ do_read(int epollfd, int fd, void *buf) {
     run_sock5(epollfd, fd, buf);
 }
 
-static void 
-run_sock5(int epollfd, int fd, void *buf) { 
+static void
+run_sock5(int epollfd, int fd, void *buf) {
     struct epoll_event ev;
     int dest_socketfd;
 
     // 若fd是目标服务器
     if (client_socket[fd] != STATUS_UNINIT) {
         forward(epollfd, client_socket[fd]);
-    } 
+    }
     // 若fd是客户端
     if (client_status[fd] == STATUS_INIT) {               // sock5请求 
         if (!sock5_license(buf))
@@ -113,18 +113,23 @@ run_sock5(int epollfd, int fd, void *buf) {
         if (!sock5_connect(buf, &dest_socketfd))
             return;
         client_status[fd] = STATUS_CONNECT;
-        client_socket[fd] = dest_socketfd;
         forward(epollfd, fd);
+
+        dest_socket[fd] = dest_socketfd;    // 用int[]当作map，clientfd对应destfd
+        client_socket[dest_socketfd] = fd;
+        ev.events = EPOLLIN;                // 把dest添加到epollfd
+        ev.data.fd = dest_socketfd;
+        Epoll_ctl(epollfd, EPOLL_CTL_ADD, dest_socketfd, &ev);
     } else if (client_status[fd] == STATUS_CONNECT) {     // sock5转发
         forward(epollfd, dest_socket[fd]);
-    } 
+    }
 }
 
 static void
 do_write(int epollfd, int fd, void *buf) {
     struct epoll_event ev;
 
-    Write(fd, buf, strlen(buf));
+    Write(fd, buf, sizeof(buf));
     bzero(buf, BUF_SIZE);
     ev.events = EPOLLIN;
     ev.data.fd = fd;

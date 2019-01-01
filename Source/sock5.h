@@ -41,7 +41,7 @@ extern BOOL sock5_license(void *buf);
 
 extern BOOL sock5_connect(void *buf, int *dest_socketfd);
 
-extern int proxy_socket(struct in_addr *ip, in_port_t *port);
+static int proxy_socket(const struct in_addr *ip, const in_port_t *port);
 
 extern void forward(int epollfd, int fd);
 

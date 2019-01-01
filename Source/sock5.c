@@ -32,15 +32,15 @@ sock5_connect(void *buf, int *dest_socketfd) {
     if (connect_request->type != 0x01)  // 请求类型错误，非IPv4
         return FALSE;
 
-    *dest_socketfd = proxy_socket((void *) &(connect_request->addr), (void *)&(connect_request->port));
+    *dest_socketfd = proxy_socket((void *) &(connect_request->addr), (void *) &(connect_request->port));
     bzero(buf, sizeof(buf));
     server_connect_response connect_response = {0x05, 0x00, 0x00, 0x01};
     memcpy(buf, &connect_response, sizeof(connect_response));
     return TRUE;
 }
 
-extern int
-proxy_socket(struct in_addr *ip, in_port_t *port) {
+static int
+proxy_socket(const struct in_addr *ip, const in_port_t *port) {
     int proxy_sockfd;
     struct sockaddr_in proxy_servaddr;
 
@@ -54,9 +54,9 @@ proxy_socket(struct in_addr *ip, in_port_t *port) {
     return proxy_sockfd;
 }
 
-extern void 
+extern void
 forward(int epollfd, int fd) {
-    struct epoll_event ev;    
+    struct epoll_event ev;
 
     ev.events = EPOLLOUT;
     ev.data.fd = fd;

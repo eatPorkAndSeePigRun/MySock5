@@ -19,11 +19,13 @@ static void do_write(int epollfd, int fd, void *buf);
 
 static void run_sock5(int epollfd, int fd, void *buf);
 
+
+// 用int[]当作map
 static int client_status[0xff];
 static int dest_socket[0xff];
 static int client_socket[0xff];
 
-// 表示客户端sock5的请求、连接、转发
+// 表示客户端sock5的请求、连接、转发，作为client_status的取值
 #define STATUS_UNINIT   0
 #define STATUS_INIT     1
 #define STATUS_LICENSE  2
