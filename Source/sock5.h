@@ -3,18 +3,46 @@
 
 #include <arpa/inet.h>
 
-extern int tcp(const char *ip, uint16_t port);
+typedef struct {
+    char ver;           // 客户端协议版本号，如：0x05, 0x04
+    char nmethods;      // 客户端支持认证方式的长度
+    char methods[255];  // 客户端支持的认证方式
+} client_license_request;
 
-#define EPOLL_SIZE          5
-#define MAX_EPOLL_EVENTS    100
-#define BUF_SIZE            10240
+typedef struct {
+    char ver;       // 服务端协议版本号
+    char method;    // 服务端的认证方式
+} server_license_response;
 
-extern void run_epoll(int listenfd);
+typedef struct {
+    char ver;       // 客户端协议版本号
+    char cmd;       // 连接方式
+    char rsv;       // 保留位
+    char type;      // 类型
+    char addr[4];   // ip地址
+    char port[2];   // 端口号
+} client_connect_request;
 
-extern void handle_accept(int epollfd, int listenfd);
+typedef struct {
+    char ver;       // 版本号
+    char rep;       // 连接状态
+    char rsv;       // 保留位
+    char type;      // 类型
+    char addr[4];   // ip地址
+    char port[2];   // 端口号
+} server_connect_response;
 
-extern void do_read(int epollfd, int fd, void *buf);
 
-extern void do_write(int epollfd, int fd, void *buf);
+#define BOOL    int
+#define TRUE    1
+#define FALSE   0
+
+extern BOOL sock5_license(void *buf);
+
+extern BOOL sock5_connect(void *buf, int *dest_socketfd);
+
+extern int proxy_socket(struct in_addr *ip, in_port_t *port);
+
+extern void forward(int epollfd, int fd);
 
 #endif  //SOCK5_H

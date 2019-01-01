@@ -1,100 +1,64 @@
 #include <netinet/in.h>
 #include <strings.h>
-#include <arpa/inet.h>
-#include <sys/epoll.h>
 #include <string.h>
+#include <sys/epoll.h>
 
 #include "sock5.h"
 #include "wrap.h"
 
-#include <stdio.h>
-#include <unistd.h>
+extern BOOL
+sock5_license(void *buf) {
+    client_license_request *license_request = NULL;
+
+    license_request = (client_license_request *) buf;
+    if (license_request->ver != 0x05)   // 协议版本错误
+        return FALSE;
+
+    bzero(buf, sizeof(buf));
+    server_license_response license_response = {0x05, 0x00};
+    memcpy(buf, &license_response, sizeof(license_response));
+    return TRUE;
+}
+
+extern BOOL
+sock5_connect(void *buf, int *dest_socketfd) {
+    client_connect_request *connect_request = NULL;
+
+    connect_request = (client_connect_request *) buf;
+    if (connect_request->ver != 0x05)   // 协议版本错误
+        return FALSE;
+    if (connect_request->cmd != 0x01)   // 请求命令错误，非TCP
+        return FALSE;
+    if (connect_request->type != 0x01)  // 请求类型错误，非IPv4
+        return FALSE;
+
+    *dest_socketfd = proxy_socket((void *) &(connect_request->addr), (void *)&(connect_request->port));
+    bzero(buf, sizeof(buf));
+    server_connect_response connect_response = {0x05, 0x00, 0x00, 0x01};
+    memcpy(buf, &connect_response, sizeof(connect_response));
+    return TRUE;
+}
 
 extern int
-tcp(const char *ip, uint16_t port) {
-    int listenfd;
-    struct sockaddr_in servaddr;
+proxy_socket(struct in_addr *ip, in_port_t *port) {
+    int proxy_sockfd;
+    struct sockaddr_in proxy_servaddr;
 
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    inet_pton(AF_INET, ip, &servaddr.sin_addr);
-    servaddr.sin_port = htons(port);
+    bzero(&proxy_servaddr, sizeof(proxy_servaddr));
+    proxy_servaddr.sin_family = AF_INET;
+    proxy_servaddr.sin_addr = *ip;
+    proxy_servaddr.sin_port = *port;
 
-    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
-    Bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
-    Listen(listenfd, 5);
-    return listenfd;
+    proxy_sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+    Connect(proxy_sockfd, (struct sockaddr *) &proxy_servaddr, sizeof(proxy_servaddr));
+    return proxy_sockfd;
 }
 
-extern void
-run_epoll(int listenfd) {
-    int epollfd, nfds;
-    struct epoll_event ev, events[MAX_EPOLL_EVENTS];
-    int i;
-    char buf[BUF_SIZE];
-    bzero(buf, BUF_SIZE);
+extern void 
+forward(int epollfd, int fd) {
+    struct epoll_event ev;    
 
-    epollfd = Epoll_create(EPOLL_SIZE);
-
-    ev.events = EPOLLIN;
-    ev.data.fd = listenfd;
-    Epoll_ctl(epollfd, EPOLL_CTL_ADD, listenfd, &ev);
-
-    while (1) {
-        nfds = Epoll_wait(epollfd, events, MAX_EPOLL_EVENTS, -1);
-        for (i = 0; i < nfds; ++i) {
-            if (events[i].data.fd == listenfd)
-                handle_accept(epollfd, listenfd);
-            else if (events[i].events == EPOLLIN)
-                do_read(epollfd, events[i].data.fd, buf);
-            else if (events[i].events == EPOLLOUT)
-                do_write(epollfd, events[i].data.fd, buf);
-        }
-    }
-}
-
-extern void
-handle_accept(int epollfd, int listenfd) {
-    int clientfd;
-    struct sockaddr_in clientaddr;
-    socklen_t clientaddrlen;
-    struct epoll_event ev;
-
-    clientaddrlen = sizeof(clientaddr);
-    clientfd = Accept(listenfd, (struct sockaddr *) &clientaddr, &clientaddrlen);
-
-    ev.events = EPOLLIN;
-    ev.data.fd = clientfd;
-    Epoll_ctl(epollfd, EPOLL_CTL_ADD, clientfd, &ev);
-}
-
-extern void
-do_read(int epollfd, int fd, void *buf) {
-    ssize_t n;
-    struct epoll_event ev;
-
-    n = Read(fd, buf, BUF_SIZE);
-    if (n == 0) {
-        ev.events = EPOLLIN;
-        ev.data.fd = fd;
-        Epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
-        close(fd);
-    } else {
-        ev.events = EPOLLOUT;
-        ev.data.fd = fd;
-        Epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
-    }
-    printf("read: %s\n", (char*)buf);
-}
-
-extern void
-do_write(int epollfd, int fd, void *buf) {
-    struct epoll_event ev;
-
-    Write(fd, buf, strlen(buf));
-    printf("write: %s\n", (char*)buf);
-    bzero(buf, BUF_SIZE);
-    ev.events = EPOLLIN;
+    ev.events = EPOLLOUT;
     ev.data.fd = fd;
     Epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
 }
