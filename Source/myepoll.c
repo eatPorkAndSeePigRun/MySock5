@@ -4,6 +4,7 @@
 #include <sys/epoll.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "wrap.h"
 #include "myepoll.h"
@@ -28,7 +29,7 @@ tcp(const char *ip, uint16_t port) {
 
 extern void
 run_epoll(int listenfd) {
-    int epollfd, nfds;
+    int epollfd, nfds, error, len;
     struct epoll_event ev, events[MAX_EPOLL_EVENTS];
     int i;
     char buf[BUF_SIZE];
@@ -49,6 +50,14 @@ run_epoll(int listenfd) {
         for (i = 0; i < nfds; ++i) {
             if (events[i].data.fd == listenfd)
                 handle_accept(epollfd, listenfd);
+            else if ((events[i].events == EPOLLIN) && (events[i].events == EPOLLOUT)) {    // 检测连接情况
+                len = sizeof(error);
+                if (getsockopt(events[i].data.fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+                    close(events[i].data.fd);
+                    errno = error;
+                    perror("nonblock_connect error");
+                }
+            }
             else if (events[i].events == EPOLLIN)
                 do_read(epollfd, events[i].data.fd, buf);
             else if (events[i].events == EPOLLOUT)
@@ -117,7 +126,7 @@ run_sock5(int epollfd, int fd, void *buf) {
 
         dest_socket[fd] = dest_socketfd;    // 用int[]当作map，clientfd对应destfd
         client_socket[dest_socketfd] = fd;
-        ev.events = EPOLLIN;                // 把dest添加到epollfd
+        ev.events = EPOLLIN | EPOLLOUT;     // 把dest添加到epollfd
         ev.data.fd = dest_socketfd;
         Epoll_ctl(epollfd, EPOLL_CTL_ADD, dest_socketfd, &ev);
     } else if (client_status[fd] == STATUS_CONNECT) {     // sock5转发
