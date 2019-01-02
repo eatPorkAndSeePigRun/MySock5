@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/epoll.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #include "wrap.h"
 
@@ -128,4 +129,45 @@ Epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
         exit(1);
     }
     return nfds;
+}
+
+extern void
+nonblock_connect(int fd, const struct sockaddr *sa, socklen_t salen) {
+    int n, flags, epollfd, error, len;
+    struct epoll_event ev, evs;
+
+    flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    n = connect(fd, sa, salen);
+    if (n < 0) {
+        if (errno != EINPROGRESS) {
+            perror("nonblock_connect error");
+            exit(1);
+        }
+    } else if (n > 0) { // 用epoll检测连接情况
+        epollfd = Epoll_create(1);
+
+        ev.events = EPOLLIN;;
+        ev.data.fd = fd;
+        Epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+
+        n = Epoll_wait(epollfd, &evs, 1, 0);
+        if (n == 0) {
+            close(fd);
+            perror("connect timeout");
+            exit(1);
+        }
+        if ((evs.events == EPOLLIN) || (evs.events == EPOLLOUT)) {
+            len = sizeof(error);
+            if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+                close(fd);
+                errno = error;
+                perror("nonblock_connect error");
+                exit(1);
+            }
+        }
+    }
+
+    fcntl(fd, F_SETFL, flags);
 }

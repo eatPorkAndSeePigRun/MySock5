@@ -50,7 +50,7 @@ proxy_socket(const struct in_addr *ip, const in_port_t *port) {
     proxy_servaddr.sin_port = *port;
 
     proxy_sockfd = Socket(AF_INET, SOCK_STREAM, 0);
-    Connect(proxy_sockfd, (struct sockaddr *) &proxy_servaddr, sizeof(proxy_servaddr));
+    nonblock_connect(proxy_sockfd, (struct sockaddr *) &proxy_servaddr, sizeof(proxy_servaddr));
     return proxy_sockfd;
 }
 

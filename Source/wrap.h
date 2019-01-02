@@ -24,4 +24,6 @@ extern int Epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
 
 extern int Epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
 
+extern void nonblock_connect(int fd, const struct sockaddr *sa, socklen_t salen);
+
 #endif //WRAP_H
